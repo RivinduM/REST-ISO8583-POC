@@ -24,9 +24,6 @@ import ballerina/tcp;
 
 import ballerinax/financial.iso8583;
 
-import thisarug/prettify;
-import ballerina/io;
-
 # A service representing a network-accessible API
 # bound to port `9090`.
 #
@@ -48,28 +45,20 @@ service / on securedEP {
     resource function post transactions/fundTransfer/single(@http:Payload {mediaType: mime:APPLICATION_FORM_URLENCODED}
             map<string> transactionRequest) returns TransactionResponse|error {
 
-        log:printDebug(string `[REST endpoint] Received request`, transactionRequest = prettify:prettify(transactionRequest));
-        log:printInfo(string `[REST endpoint] Received transaction request`);
-        io:println(prettify:prettify(transactionRequest));
+        log:printDebug(string `[REST endpoint] Received request`, transactionRequest = transactionRequest);
         TransactionMessage|error transactionMessage = transactionRequest.cloneWithType(TransactionMessage);
         if transactionMessage is TransactionMessage {
             MTI_1200 mti200Message = buildMTI0200Message(transactionMessage);
             log:printDebug(string `[REST endpoint] MTI 1200 message ` + mti200Message.toJsonString());
-            log:printInfo("[REST endpoint] Translated MTI 1200 message model");
-            io:println(prettify:prettify(mti200Message));
 
             string|iso8583:ISOError encodedMsg = iso8583:encode(mti200Message);
             if encodedMsg is string {
                 // Send the desired content to the server.
                 tcp:Client socketClient = check new ("localhost", 9095);
                 log:printDebug(string `[REST endpoint] Sending encoded message to tcp server`, encodedMsg = encodedMsg);
-                log:printInfo(string `[REST endpoint] Sending encoded message to tcp server`, encodedMsg = encodedMsg);
-                io:println();
                 byte[]|error iso8583bytes = build8583ByteArray(encodedMsg); // todo: can be moved to lib
                 if iso8583bytes is byte[] {
                     log:printDebug(string `[REST endpoint] Encoded Byte array`, byteArray = iso8583bytes.toString());
-                    log:printInfo(string `[REST endpoint] Encoded Byte array`, byteArray = iso8583bytes.toString());
-                    io:println();
                     check socketClient->writeBytes(iso8583bytes);
                     // Read the response from the server.
                     readonly & byte[] receivedData = check socketClient->readBytes();
@@ -79,9 +68,6 @@ service / on securedEP {
                     string base16Result = array:toBase16(receivedData);
                     log:printDebug(string `[REST endpoint] Received response from TCP server(base 16)`, 
                         response = base16Result);
-                    log:printInfo(string `[REST endpoint] Received response from TCP server(base 16)`, 
-                        response = base16Result);
-                    io:println();
                     int headerLength = 8;
                     int mtiLLength = 8;
                     int nextIndex = headerLength;
@@ -106,13 +92,8 @@ service / on securedEP {
 
                     log:printDebug(string `[REST endpoint] Decoded response message successfully.`,
                             MTI = convertedMti, Bitmaps = bitmaps, Data = convertedDataString);
-                    log:printInfo(string `[REST endpoint] Decoded response message successfully.`,
-                            MTI = convertedMti, Bitmaps = bitmaps, Data = convertedDataString);
-                    io:println();
                     string msgToParse = convertedMti + bitmaps + convertedDataString;
                     log:printDebug(string `[REST endpoint] Parsing the iso 8583 message.`, Message = msgToParse);
-                    log:printInfo(string `[REST endpoint] Parsing the iso 8583 message.`, Message = msgToParse);
-                    io:println();
                     // todo: move decoding to a lib
 
                     anydata|iso8583:ISOError parsedISO8583Msg = iso8583:parse(msgToParse);
@@ -125,8 +106,6 @@ service / on securedEP {
                         MTI_1210 validatedMsg = check constraint:validate(parsedISO8583Msg);
                         log:printDebug(string `[REST endpoint] Parsed response message successfully`, 
                             message = validatedMsg.toJsonString());
-                        log:printInfo(string `[REST endpoint] Parsed response message successfully`);
-                        io:println(prettify:prettify(validatedMsg));
                         // Process the parsed message and extract the required information.
                         TransactionResponse transactionResponse = {
                             Status: "SUCCESS",
