@@ -374,21 +374,9 @@ dependencies = [
 	{org = "ballerina", name = "tcp"},
 	{org = "ballerina", name = "test"},
 	{org = "ballerinai", name = "observe"},
-	{org = "ballerinax", name = "financial.iso8583"},
-	{org = "thisarug", name = "prettify"}
+	{org = "ballerinax", name = "financial.iso8583"}
 ]
 modules = [
 	{org = "rivindumadushan", packageName = "iso8583_poc_PABC", moduleName = "iso8583_poc_PABC"}
-]
-
-[[package]]
-org = "thisarug"
-name = "prettify"
-version = "1.0.0"
-dependencies = [
-	{org = "ballerinai", name = "observe"}
-]
-modules = [
-	{org = "thisarug", packageName = "prettify", moduleName = "prettify"}
 ]
 

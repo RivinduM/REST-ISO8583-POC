@@ -239,8 +239,8 @@ public type MTI_1210 record {|
 public type TransactionMessage record {
     string auxNo;
     string messageId;
-    string messageGroupId;
-    string cardNo;
+    string messageGroupId?;
+    string cardNo?;
     string fromAccId;
     string fromAccLbl?;
     string toAccId;

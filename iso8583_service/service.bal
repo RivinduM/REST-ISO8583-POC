@@ -17,7 +17,6 @@
 import ballerina/constraint;
 import ballerina/http;
 
-import ballerina/lang.array;
 import ballerina/log;
 import ballerina/mime;
 import ballerina/tcp;
@@ -56,7 +55,8 @@ service / on securedEP {
                 // Send the desired content to the server.
                 tcp:Client socketClient = check new ("localhost", 9095);
                 log:printDebug(string `[REST endpoint] Sending encoded message to tcp server`, encodedMsg = encodedMsg);
-                byte[]|error iso8583bytes = build8583ByteArray(encodedMsg); // todo: can be moved to lib
+                // Convert the message to a byte array.
+                byte[]|error iso8583bytes = generateBytes(encodedMsg, "", true);
                 if iso8583bytes is byte[] {
                     log:printDebug(string `[REST endpoint] Encoded Byte array`, byteArray = iso8583bytes.toString());
                     check socketClient->writeBytes(iso8583bytes);
@@ -64,37 +64,14 @@ service / on securedEP {
                     readonly & byte[] receivedData = check socketClient->readBytes();
                     // Close the connection between the server and the client.
                     check socketClient->close();
-                    // Convert the received data to a string.
-                    string base16Result = array:toBase16(receivedData);
-                    log:printDebug(string `[REST endpoint] Received response from TCP server(base 16)`, 
-                        response = base16Result);
-                    int headerLength = 8;
-                    int mtiLLength = 8;
-                    int nextIndex = headerLength;
-                    // let's convert all to the original hex representation. Even though this is a string,
-                    // it represents the actual hexa decimal encoded byte stream.
-                    // extract the message type identifier 
-                    string mtiMsg = base16Result.substring(nextIndex, nextIndex + mtiLLength);
-                    nextIndex = nextIndex + mtiLLength;
-                    // count the number of bitmaps. there can be multiple bitmaps. but the first bit of the bitmap indicates whether 
-                    // there is another bitmap.
-                    int bitmapCount = check countBitmapsFromHexString(base16Result.substring(nextIndex));
 
-                    // a bitmap in the hex representation is represented in 16 chars.
-                    int bitmapLastIndex = nextIndex + 16 * bitmapCount;
-                    string bitmaps = base16Result.substring(nextIndex, bitmapLastIndex);
-                    string dataString = base16Result.substring(bitmapLastIndex);
-
-                    // string correlationId = uuid:createType4AsString();
-                    // parse ISO 8583 message
-                    string convertedMti = check hexStringToString(mtiMsg.padZero(4));
-                    string convertedDataString = check hexStringToString(dataString);
+                    // decode the byte stream
+                    [string, string, string]|error [mti, bitmaps, convertedDataString] = decodeByteStream(receivedData);
 
                     log:printDebug(string `[REST endpoint] Decoded response message successfully.`,
-                            MTI = convertedMti, Bitmaps = bitmaps, Data = convertedDataString);
-                    string msgToParse = convertedMti + bitmaps + convertedDataString;
+                            MTI = mti, Bitmaps = bitmaps, Data = convertedDataString);
+                    string msgToParse = mti + bitmaps + convertedDataString;
                     log:printDebug(string `[REST endpoint] Parsing the iso 8583 message.`, Message = msgToParse);
-                    // todo: move decoding to a lib
 
                     anydata|iso8583:ISOError parsedISO8583Msg = iso8583:parse(msgToParse);
 
